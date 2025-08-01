@@ -16,7 +16,7 @@ exports.createParticipant = async (req, res) => {
     if (game && game.prize) {
       const participants = await Participant.find({ gameId });
       const totalCollected = participants.length * game.entranceFee;
-      const prizeAmount = totalCollected * 0.8; // 20% for system
+      const prizeAmount = totalCollected * 0.7; // 30% for system
       await Prize.findByIdAndUpdate(game.prize, { amount: prizeAmount });
     }
 

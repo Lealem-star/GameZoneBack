@@ -19,14 +19,14 @@ router.get('/admin/controllers', authMiddleware.verifyToken, authMiddleware.isAd
     next();
 }, userController.getUsers); // Get all game controllers
 
+
 // Get a single game controller by ID
 router.get('/admin/controllers/:id', authMiddleware.verifyToken, authMiddleware.isAdmin, userController.getUserById);
-
 // Get all games managed by a controller
 router.get('/admin/controllers/:id/games', authMiddleware.verifyToken, authMiddleware.isAdmin, gameController.getGamesByController);
-
 // Get total revenue for a controller
 router.get('/admin/controllers/:id/revenue', authMiddleware.verifyToken, authMiddleware.isAdmin, gameController.getControllerRevenue);
+
 
 router.put('/admin/controllers/:userId', authMiddleware.verifyToken, authMiddleware.isAdmin, userController.updateUser); // Update a game controller
 router.delete('/admin/controllers/:userId', authMiddleware.verifyToken, authMiddleware.isAdmin, userController.deleteUser); // Delete a game controller

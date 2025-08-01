@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 // Fallback JWT secret for development
-const JWT_SECRET = process.env.JWT_SECRET || 'gursha_jwt_secret_key_2024_very_secure_123456789';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Sign Up Function
 exports.signup = async (req, res) => {
