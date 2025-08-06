@@ -6,8 +6,12 @@ const participantSchema = new mongoose.Schema({
     required: true
   },
   photo: {
-    type: String, // URL or path to the photo/emoji
-    required: true
+    type: String, // URL or path to the photo
+    required: false
+  },
+  emoji: {
+    type: String, // Emoji character
+    default: '😀'
   },
   gameId: {
     type: mongoose.Schema.Types.ObjectId,

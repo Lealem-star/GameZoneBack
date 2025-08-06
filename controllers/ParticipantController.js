@@ -4,20 +4,27 @@ const Prize = require('../models/Prize');
 
 // Create a new participant
 exports.createParticipant = async (req, res) => {
-  const { name, photo, entranceFee } = req.body;
+  const { name, photo, emoji, entranceFee } = req.body;
   const { gameId } = req.params; // get gameId from params
 
   try {
-    const newParticipant = new Participant({ name, photo, entranceFee, gameId });
+    const newParticipant = new Participant({ name, photo, emoji, entranceFee, gameId });
     await newParticipant.save();
 
-    // Recalculate prize amount
+    // Recalculate prize amount and update totalCollected
     const game = await Game.findById(gameId);
-    if (game && game.prize) {
+    if (game) {
       const participants = await Participant.find({ gameId });
       const totalCollected = participants.length * game.entranceFee;
-      const prizeAmount = totalCollected * 0.7; // 30% for system
-      await Prize.findByIdAndUpdate(game.prize, { amount: prizeAmount });
+      
+      // Update the game's totalCollected field
+      await Game.findByIdAndUpdate(gameId, { totalCollected });
+      
+      // Update prize amount if prize exists
+      if (game.prize) {
+        const prizeAmount = totalCollected * 0.7; // 30% for system
+        await Prize.findByIdAndUpdate(game.prize, { amount: prizeAmount });
+      }
     }
 
     res.status(201).json({ message: 'Participant added successfully', newParticipant });

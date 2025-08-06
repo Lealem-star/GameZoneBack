@@ -47,6 +47,11 @@ exports.verifyToken = (req, res, next) => {
     }
     req.userId = decoded.id;
     req.userRole = decoded.role;
+    // Add user object for consistency
+    req.user = {
+      id: decoded.id,
+      role: decoded.role
+    };
     console.log('Token verified successfully for user:', decoded.id, 'Role:', decoded.role);
     next();
   });
@@ -64,8 +69,73 @@ exports.isAdmin = (req, res, next) => {
 
 // Middleware to check if the user is a game controller
 exports.isGameController = (req, res, next) => {
-  if (req.userRole !== 'controller') {
+  if (req.userRole !== 'gameController') {
     return res.status(403).json({ message: 'Require Game Controller Role!' });
   }
   next();
+};
+
+// Middleware to check if game controller's package is depleted
+exports.checkPackageStatus = async (req, res, next) => {
+  try {
+    // Skip check for admin users
+    if (req.user && req.user.role === 'admin') {
+      return next();
+    }
+    
+    // Check if user is a game controller with a package
+    if (req.user && req.user.role === 'gameController') {
+      const User = require('../models/User');
+      const gameController = await User.findById(req.user.id);
+      
+      // If package is limited and depleted, deny access
+      if (gameController && 
+          gameController.package && 
+          !gameController.package.isUnlimited && 
+          gameController.package.remainingAmount <= 0) {
+        return res.status(403).json({ 
+          message: 'Package depleted. Please contact admin to refill your package.',
+          packageDepleted: true
+        });
+      }
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Error checking package status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Middleware to check if game controller's package is depleted
+exports.checkPackageStatus = async (req, res, next) => {
+  try {
+    // Skip this check for admin users
+    if (req.userRole === 'admin') {
+      return next();
+    }
+    
+    // For game controllers, check their package status
+    if (req.userRole === 'gameController') {
+      const user = await User.findById(req.userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If package is not unlimited and remaining amount is 0 or less
+      if (!user.package.isUnlimited && user.package.remainingAmount <= 0) {
+        return res.status(403).json({
+          message: 'Package depleted',
+          packageDepleted: true,
+          originalAmount: user.package.amount
+        });
+      }
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Error checking package status:', error);
+    res.status(500).json({ message: 'Error checking package status', error: error.message });
+  }
 };

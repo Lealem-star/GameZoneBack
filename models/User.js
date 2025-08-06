@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// Validator function to limit the number of devices per user
+function arrayLimit(val) {
+  return val.length <= 2; // Limit to 2 devices per user
+}
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -15,7 +20,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['admin', 'gameController'], // Combined enum values
     required: true,
-    default: 'gameController' // Default role set to 'controller'
+    default: 'gameController' // Default role set to 'gameController'
   },
   image: {
     type: String, // Store the file path or URL
@@ -32,6 +37,38 @@ const userSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
     default: ''
+  },
+  package: {
+    amount: {
+      type: Number,
+      default: 0 // 0 means unlimited
+    },
+    isUnlimited: {
+      type: Boolean,
+      default: true
+    },
+    remainingAmount: {
+      type: Number,
+      default: 0
+    }
+  },
+  devices: {
+    type: [{
+      deviceId: {
+        type: String,
+        required: true
+      },
+      deviceName: {
+        type: String,
+        default: 'Unknown Device'
+      },
+      lastLogin: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    default: [],
+    validate: [arrayLimit, '{PATH} exceeds the limit of 2 devices']
   }
 }, { timestamps: true }); // Adds createdAt and updatedAt timestamps
 

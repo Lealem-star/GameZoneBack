@@ -2,7 +2,16 @@ const User = require('../models/User');
 
 // Create a new user (for game controllers)
 exports.createUser = async (req, res) => {
-  const { username, password, role = 'gameController', location = '', restaurantName = '', phoneNumber = '' } = req.body;
+  const { 
+    username, 
+    password, 
+    role = 'gameController', 
+    location = '', 
+    restaurantName = '', 
+    phoneNumber = '',
+    packageAmount,
+    isUnlimited = true
+  } = req.body;
 
   // Get image path if file was uploaded
   const image = req.file ? `/uploads/${req.file.filename}` : null;
@@ -12,6 +21,7 @@ exports.createUser = async (req, res) => {
     console.log('🔐 Admin user info - ID:', req.userId, 'Role:', req.userRole);
     console.log('🖼️  Image uploaded:', image);
     console.log('📍 Location:', location, '| 🍽️ Restaurant:', restaurantName, '| 📞 Phone:', phoneNumber);
+    console.log('📦 Package:', isUnlimited ? 'Unlimited' : `${packageAmount} amount`);
 
     // Check if user already exists
     const existingUser = await User.findOne({ username });
@@ -19,6 +29,18 @@ exports.createUser = async (req, res) => {
       console.log('❌ Username already exists:', username);
       return res.status(400).json({ message: 'Username already exists' });
     }
+
+    // Prepare package data
+    const isUnlimitedPackage = isUnlimited === true || isUnlimited === 'true';
+    const packageAmount_num = isUnlimitedPackage ? 0 : Number(packageAmount) || 0;
+    
+    const packageData = {
+      isUnlimited: isUnlimitedPackage,
+      amount: packageAmount_num, // Store the original package amount in birr
+      remainingAmount: packageAmount_num // Initialize remaining amount to the full package amount
+    };
+    
+    console.log('💰 Package details - Amount:', packageData.amount, 'ETB | Remaining:', packageData.remainingAmount, 'ETB | Unlimited:', packageData.isUnlimited);
 
     // Create new user (password will be hashed by the pre-save middleware)
     const newUser = new User({
@@ -28,7 +50,8 @@ exports.createUser = async (req, res) => {
       image,
       location,
       restaurantName,
-      phoneNumber
+      phoneNumber,
+      package: packageData
     });
 
     await newUser.save();
@@ -43,6 +66,7 @@ exports.createUser = async (req, res) => {
       location: newUser.location,
       restaurantName: newUser.restaurantName,
       phoneNumber: newUser.phoneNumber,
+      package: newUser.package,
       createdAt: newUser.createdAt
     };
 
