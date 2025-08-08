@@ -20,11 +20,12 @@ const gameSchema = new mongoose.Schema({
     },
     systemRevenue: {
         type: Number,
-        default: 0 // 20% of total collected
+        default: 0 // 30% of total collected
     },
     prize: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Prize'
+        ref: 'Prize',
+        default: null
     },
     gameControllerId: {
         type: mongoose.Schema.Types.ObjectId,

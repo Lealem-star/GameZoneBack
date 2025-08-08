@@ -16,6 +16,10 @@ const participantSchema = new mongoose.Schema({
   gameId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Game' // Reference to the Game model
+  },
+  controllerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User' // Reference to the Game Controller
   }
 }, { timestamps: true });
 

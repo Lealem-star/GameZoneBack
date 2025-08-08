@@ -8,5 +8,6 @@ router.get('/games/:gameId/participants', participantController.getParticipants)
 router.put('/participants/:participantId', participantController.updateParticipant); // Update a participant
 router.delete('/participants/:participantId', participantController.deleteParticipant); // Delete a participant
 router.get('/participants', participantController.getAllParticipants); // Get all participants
+router.get('/participants/controller/:controllerId', participantController.getParticipantsByController); // Get participants by controller
 
 module.exports = router;

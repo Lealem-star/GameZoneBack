@@ -4,10 +4,33 @@ const Game = require('../models/Game');
 exports.createGame = async (req, res) => {
   const { name, mealTime, entranceFee, prize, gameControllerId } = req.body;
 
+  console.log('🎮 Creating game with data:', { name, mealTime, entranceFee, prize, gameControllerId });
+
   try {
-    // Calculate system revenue (10% of entrance fee)
-    const systemRevenue = entranceFee * 0.1; // 10% of entrance fee
-    
+    // Validate required fields
+    if (!name || !mealTime || !entranceFee || !gameControllerId) {
+      return res.status(400).json({
+        message: 'Missing required fields: name, mealTime, entranceFee, and gameControllerId are required'
+      });
+    }
+
+    // Validate mealTime enum
+    if (!['breakfast', 'lunch', 'dinner'].includes(mealTime)) {
+      return res.status(400).json({
+        message: 'Invalid mealTime. Must be one of: breakfast, lunch, dinner'
+      });
+    }
+
+    // Validate entranceFee is a positive number
+    if (typeof entranceFee !== 'number' || entranceFee <= 0) {
+      return res.status(400).json({
+        message: 'entranceFee must be a positive number'
+      });
+    }
+
+    // Calculate system revenue (30% of entrance fee)
+    const systemRevenue = entranceFee * 0.3; // 30% of entrance fee
+
     // Create the new game with calculated system revenue
     const newGame = new Game({
       name,
@@ -18,23 +41,30 @@ exports.createGame = async (req, res) => {
       systemRevenue // Store the system revenue in the game record
     });
     await newGame.save();
-    
+
     // Update the game controller's package remaining amount if they have a limited package
     if (gameControllerId) {
-      const User = require('../models/User');
-      const gameController = await User.findById(gameControllerId);
-      
-      if (gameController && !gameController.package.isUnlimited && gameController.package.remainingAmount > 0) {
-        // Decrease the remaining amount by the system revenue amount
-        gameController.package.remainingAmount = Math.max(0, gameController.package.remainingAmount - systemRevenue);
-        await gameController.save();
-        console.log(`Updated game controller ${gameController.username} package: ${gameController.package.remainingAmount} ETB remaining (reduced by ${systemRevenue} ETB)`);
+      try {
+        const User = require('../models/User');
+        const gameController = await User.findById(gameControllerId);
+
+        if (gameController && gameController.package && !gameController.package.isUnlimited && gameController.package.remainingAmount > 0) {
+          // The system fee is 30% of entrance fee
+          // Note: At this point, we don't know how many participants will join
+          // The actual deduction will happen when participants join the game
+          // For now, we just store the systemRevenue in the game record
+          console.log(`Game created with system revenue rate of 30% (${systemRevenue} ETB per participant)`);
+        }
+      } catch (packageError) {
+        console.error('Error checking game controller package:', packageError);
+        // Don't fail the game creation if package check fails
       }
     }
-    
+
+    console.log('✅ Game created successfully:', newGame._id);
     res.status(201).json({ message: 'Game created successfully', newGame });
   } catch (error) {
-    console.error('Error creating game:', error);
+    console.error('❌ Error creating game:', error);
     res.status(500).json({ message: 'Error creating game', error: error.message });
   }
 };
@@ -97,12 +127,12 @@ exports.getGameById = async (req, res) => {
 // Get all games managed by a specific controller
 exports.getGamesByController = async (req, res) => {
   const { id } = req.params;
-  
+
   // Check if id is null or undefined
   if (!id || id === 'null' || id === 'undefined') {
     return res.status(400).json({ message: 'Invalid controller ID provided' });
   }
-  
+
   try {
     const games = await Game.find({ gameControllerId: id })
       .populate('prize')
@@ -118,36 +148,36 @@ exports.getGamesByController = async (req, res) => {
 // Get total revenue for a specific controller
 exports.getControllerRevenue = async (req, res) => {
   const { id } = req.params;
-  
+
   // Check if id is null or undefined
   if (!id || id === 'null' || id === 'undefined') {
     return res.status(400).json({ message: 'Invalid controller ID provided' });
   }
-  
+
   try {
     const games = await Game.find({ gameControllerId: id });
     const totalRevenue = games.reduce((sum, game) => sum + (game.entranceFee || 0), 0);
     const totalSystemRevenue = games.reduce((sum, game) => sum + (game.systemRevenue || 0), 0);
-    
+
     // Get today's games for daily revenue calculation
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     const todaysGames = await Game.find({
       gameControllerId: id,
       createdAt: { $gte: today, $lt: tomorrow }
     });
-    
+
     const dailyRevenue = todaysGames.reduce((sum, game) => sum + (game.entranceFee || 0), 0);
     const dailySystemRevenue = todaysGames.reduce((sum, game) => sum + (game.systemRevenue || 0), 0);
-    
-    res.status(200).json({ 
-      totalRevenue, 
-      dailyRevenue, 
+
+    res.status(200).json({
+      totalRevenue,
+      dailyRevenue,
       totalSystemRevenue,
-      dailySystemRevenue 
+      dailySystemRevenue
     });
   } catch (error) {
     res.status(500).json({ message: 'Error calculating revenue for controller', error });

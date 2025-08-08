@@ -8,22 +8,54 @@ exports.createParticipant = async (req, res) => {
   const { gameId } = req.params; // get gameId from params
 
   try {
-    const newParticipant = new Participant({ name, photo, emoji, entranceFee, gameId });
+    // Get the game to find the controller
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    const newParticipant = new Participant({
+      name,
+      photo,
+      emoji,
+      entranceFee,
+      gameId,
+      controllerId: game.gameControllerId // Add controller ID from the game
+    });
     await newParticipant.save();
 
     // Recalculate prize amount and update totalCollected
-    const game = await Game.findById(gameId);
-    if (game) {
+    const updatedGame = await Game.findById(gameId);
+    if (updatedGame) {
       const participants = await Participant.find({ gameId });
-      const totalCollected = participants.length * game.entranceFee;
-      
+      const totalCollected = participants.length * updatedGame.entranceFee;
+      const systemRevenue = updatedGame.entranceFee * 0.3; // 30% of entrance fee per participant
+
       // Update the game's totalCollected field
       await Game.findByIdAndUpdate(gameId, { totalCollected });
-      
+
       // Update prize amount if prize exists
-      if (game.prize) {
-        const prizeAmount = totalCollected * 0.7; // 30% for system
-        await Prize.findByIdAndUpdate(game.prize, { amount: prizeAmount });
+      if (updatedGame.prize) {
+        const prizeAmount = totalCollected * 0.7; // 70% for prize
+        await Prize.findByIdAndUpdate(updatedGame.prize, { amount: prizeAmount });
+      }
+
+      // Update the game controller's package remaining amount
+      if (updatedGame.gameControllerId) {
+        try {
+          const User = require('../models/User');
+          const gameController = await User.findById(updatedGame.gameControllerId);
+
+          if (gameController && gameController.package && !gameController.package.isUnlimited && gameController.package.remainingAmount > 0) {
+            // Decrease the remaining amount by the system revenue for this participant
+            gameController.package.remainingAmount = Math.max(0, gameController.package.remainingAmount - systemRevenue);
+            await gameController.save();
+            console.log(`Updated game controller ${gameController.username} package: ${gameController.package.remainingAmount} ETB remaining (reduced by ${systemRevenue} ETB for new participant)`);
+          }
+        } catch (packageError) {
+          console.error('Error updating game controller package:', packageError);
+          // Don't fail the participant creation if package update fails
+        }
       }
     }
 
@@ -77,5 +109,17 @@ exports.getAllParticipants = async (req, res) => {
     res.status(200).json(participants);
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving all participants', error });
+  }
+};
+
+// Get participants by controller
+exports.getParticipantsByController = async (req, res) => {
+  const { controllerId } = req.params;
+
+  try {
+    const participants = await Participant.find({ controllerId });
+    res.status(200).json(participants);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving participants by controller', error });
   }
 };
