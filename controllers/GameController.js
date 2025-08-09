@@ -38,7 +38,9 @@ exports.createGame = async (req, res) => {
       entranceFee,
       prize,
       gameControllerId,
-      systemRevenue // Store the system revenue in the game record
+      systemRevenue, // Store the system revenue in the game record
+      winner: null, // Ensure no winner is set for a new game
+      status: 'ongoing'
     });
     await newGame.save();
 
